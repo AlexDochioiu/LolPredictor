@@ -21,6 +21,7 @@ def get_hundred_matches_ids_from_index(api_token: str, server:str, account_id: s
     return match_ids
 
 def get_all_matches_ids_for_season(api_token: str, server:str, account_id: str, season: int = 11):
+    print("Get all matches for acc {0} on server {1}".format(account_id, server))
     all_matches: list = []
     current_index: int = 0
     
@@ -38,8 +39,13 @@ def get_all_matches_ids_for_season(api_token: str, server:str, account_id: str, 
 # match_ids = get_all_matches_ids_for_season("RGAPI-4a9863d3-fc93-4e0c-a98a-f726500517eb", "euw1", "30648034", 11)
 # print(match_ids)
     
+api_key: str = "RGAPI-685b780f-3e13-4dd8-bec4-604bc2378e1d"
+    
 import pandas as pd
 
 dataset = pd.read_csv("players.csv")
 dataset = dataset.drop(["Acc Name", "Team"], axis = 1)
 
+match_ids = get_all_matches_ids_for_season(api_key, dataset.iloc[10][1], dataset.iloc[10][2], 11)
+#match_ids = get_all_matches_ids_for_season(api_key, "euw1", "30648034", 11)
+print(match_ids[:10])
