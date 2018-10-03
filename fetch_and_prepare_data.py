@@ -3,10 +3,7 @@
 def get_single_match_stats(api_token: str, server: str, match_id: str):
     '''
     For a given match id on a given server, we pull the following details:
-        top1_user_id, top1_champ_id, jgl1_user_id, jgl1_champ_id, mid1_user_id, 
-        mid1_champ_id, adc1_user_id, adc1_champ_id, sup1_user_id, sup1_champ_id,
-        top2_user_id, top2_champ_id, jgl2_user_id, jgl2_champ_id, mid2_user_id, 
-        mid2_champ_id, adc2_user_id, adc2_champ_id, sup2_user_id, sup2_champ_id,
+        mid1, top1, bot11, bot12, jgl1 ,mid2, top2, bot21, bot22, jgl2
         red_team_won (boolean)
         
     P.S. red team is team1 ; blue team is team2
@@ -22,32 +19,44 @@ def get_single_match_stats(api_token: str, server: str, match_id: str):
     
     parsed_contents = json.loads(contents)
     
+    returned_queue_id: int = parsed_contents['queueId'] # https://developer.riotgames.com/game-constants.html
+    
+    if returned_queue_id not in [400, 420, 440]:
+        # THIS IS NOT a draft or ranked game
+        return []
+    '''
+    # another way of defining whether it's 5v5 summoner's rift
     returned_game_type: str = parsed_contents['gameMode'] # CLASSIC MEANS NORMAL PVP (both 5v5 and 3v3)
     returned_map_id: int = parsed_contents['mapId'] # mapId 11 is summoner's rift (so 5v5)
     if returned_game_type != 'CLASSIC' and returned_map_id != 11:
         # THIS IS NOT a draft or ranked game
         return []
+    '''
     
-    return_value = [0]*11
+    return_value = []
     
     def get_players_data():
         players_data = []
         for index in range(10):
-            players_data.append([]) # each row will contain: player_id, player_position, champ_id
             player_rito_index: int = parsed_contents['participantIdentities'][index]['participantId']
             if player_rito_index != index + 1:
                 print("WARNING: POSITION INDEX DOES NOT MATCH WITH RIOT PLAYER INDEX for game {0} on server {1}".format(match_id, server))
                 
-            players_data[index].append( parsed_contents['participantIdentities'][index]['player']['accountId'] )
-            players_data[index].append( parsed_contents['participants'][index]['timeline']['lane'] ) 
-            players_data[index].append( parsed_contents['participants'][index]['championId'] ) 
+            players_data.append( parsed_contents['participantIdentities'][index]['player']['accountId'] )
+            #players_data.append( parsed_contents['participants'][index]['timeline']['lane'] ) 
+            players_data.append( parsed_contents['participants'][index]['championId'] ) 
             
         return players_data
         
+    return_value.extend(get_players_data())
     
-    red_team_won: bool = parsed_contents['teams'][0]['win'] == 'Win'
-    return_value[10] = red_team_won
-    return_value[0] = get_players_data()
+    red_team_won: int = int(parsed_contents['teams'][0]['win'] == 'Win')
+    return_value.append(red_team_won)
+
+    # we expect 21 entries (10 pairs of player_id champ_id and 1 if red team won)
+    if len(return_value) != 21:
+        print("UNEXPECTED COUNT {0} for get players data".format(len(return_value)))
+        return []
     
     return return_value
 
@@ -85,21 +94,26 @@ def get_all_matches_ids_for_season(api_token: str, server:str, account_id: str, 
     return all_matches
         
 
-
 # match_ids = get_all_matches_ids_for_season("RGAPI-4a9863d3-fc93-4e0c-a98a-f726500517eb", "euw1", "30648034", 11)
 # print(match_ids)
     
-api_key: str = "RGAPI-685b780f-3e13-4dd8-bec4-604bc2378e1d"
+api_key: str = "RGAPI-ac1cd566-d815-41d3-baab-229da0c56bcd"
     
 import pandas as pd
 
 dataset = pd.read_csv("players.csv")
 dataset = dataset.drop(["Acc Name", "Team"], axis = 1)
 
-match_ids = get_all_matches_ids_for_season(api_key, dataset.iloc[10][1], dataset.iloc[10][2], 11)
+#match_ids = get_all_matches_ids_for_season(api_key, dataset.iloc[10][1], dataset.iloc[10][2], 11)
 #match_ids = get_all_matches_ids_for_season(api_key, "euw1", "30648034", 11)
-print(match_ids[:10])
+#print(match_ids[:10])
 
-print(get_single_match_stats(api_key, "euw1", "3782523216"))
+import csv
+with open('matches.csv', 'a') as csvfile:
+    matches_writer = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    matches_writer.writerow([dataset.iloc[10][1]] + get_all_matches_ids_for_season(api_key, dataset.iloc[10][1], dataset.iloc[10][2], 11))
+
+#print(get_single_match_stats(api_key, "euw1", "3782523216"))
 
 # KOREA MATCH ID 3359817093
